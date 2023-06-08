@@ -1,5 +1,5 @@
 const express = require('express')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
@@ -75,6 +75,18 @@ async function run() {
             res.send({ token })
         })
 
+        // middleware
+        // call verify jwt first and then call it.
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email
+            const query = { email: email }
+            const user = await usersCollection.findOne(query)
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden access!' })
+            }
+            next()
+        }
+
         // This api need for admin to check users and their rule
         app.get('/users', verifyJWT, async (req, res) => {
             const result = await usersCollection.find().toArray();
@@ -107,7 +119,23 @@ async function run() {
             const result = {role: user?.role }
             res.send(result)
         })
-        
+
+        // setting up user rule when user is admin
+        app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            // lets query first
+            let query = req.query?.type
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    role: query,
+                }
+            };
+
+            const result = await usersCollection.updateOne(filter, updatedDoc)
+            res.send(result)
+        })
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
