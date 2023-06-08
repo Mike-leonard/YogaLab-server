@@ -93,6 +93,21 @@ async function run() {
             res.send(result)
         })
 
+        // Protecting every route for every user types like admin, instructor, student
+        app.get('/users/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email
+
+            if(req.decoded.email !== email) {
+                return res.send({role: ''})
+            }
+
+            const query = {email: email}
+
+            const user = await usersCollection.findOne(query)
+            const result = {role: user?.role }
+            res.send(result)
+        })
+        
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
