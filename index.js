@@ -13,7 +13,26 @@ const port = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 
+// middleware for verifying JWT
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization
+    if(!authorization) {
+        return res.status(401).send({ error: true, message: 'Invalid authorization' })
+    }
 
+    const token = authorization.split(' ')[1]
+    // verification jwt
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ error: true, message: 'Invalid authorization' })
+        }
+        req.decoded = decoded
+        next()
+    })
+}
+
+
+// Initial Status
 app.get('/', (req, res) => {
     res.send('YogaLab Server')
 })
@@ -54,6 +73,12 @@ async function run() {
             const user = req.body
             const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
             res.send({ token })
+        })
+
+        // This api need for admin to check users and their rule
+        app.get('/users', verifyJWT, async (req, res) => {
+            const result = await usersCollection.find().toArray();
+            res.send(result);
         })
 
         // when first time user creates or already existing users available check and adding to users collection
