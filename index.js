@@ -138,6 +138,12 @@ async function run() {
             res.send(result)
         })
 
+        // Admin specific to show on manage classes
+        app.get('/classes',verifyJWT, async (req, res) => {
+            const result = await classCollection.find().toArray()
+            res.send(result);
+        })
+
         // instructor posting a new class though this route
         app.post('/classes', verifyJWT, async (req, res) => {
             const addNewClass = req.body
@@ -157,6 +163,25 @@ async function run() {
 
             const instructorClasses = await classCollection.find(query).toArray()
             const result = { classes: instructorClasses }
+            res.send(result)
+        })
+
+        // admin status changing steps to deny or approved or feedback
+        app.patch('/classes/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            // lets query first
+            const { statusType, feedback } = req.query
+            const id = req.params.id
+            console.log(statusType, feedback)
+            const filter = { _id: new ObjectId(id) }
+        
+            const updatedDoc = {
+                $set: {
+                    status: statusType,
+                    feedback: feedback,
+                }
+            };
+
+            const result = await classCollection.updateOne(filter, updatedDoc)
             res.send(result)
         })
 
