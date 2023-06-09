@@ -67,6 +67,8 @@ async function run() {
 
         // Making users collection
         const usersCollection = client.db("YogaLabDB").collection("users")
+        //  Making Class collection
+        const classCollection = client.db("YogaLabDB").collection("classes");
 
         // initial JsonwebToken Route
         app.post('/jwt', (req, res) => {
@@ -133,6 +135,13 @@ async function run() {
             };
 
             const result = await usersCollection.updateOne(filter, updatedDoc)
+            res.send(result)
+        })
+
+        // instructor posting a new class though this route
+        app.post('/classes', verifyJWT, async (req, res) => {
+            const addNewClass = req.body
+            const result = await classCollection.insertOne(addNewClass)
             res.send(result)
         })
 
