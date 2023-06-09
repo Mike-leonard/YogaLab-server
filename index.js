@@ -91,7 +91,7 @@ async function run() {
 
         // This api need for admin to check users and their rule
         app.get('/users', verifyJWT, async (req, res) => {
-            const result = await usersCollection.find().toArray();
+            const result = await usersCollection.find().toArray()
             res.send(result);
         })
 
@@ -142,6 +142,21 @@ async function run() {
         app.post('/classes', verifyJWT, async (req, res) => {
             const addNewClass = req.body
             const result = await classCollection.insertOne(addNewClass)
+            res.send(result)
+        })
+
+        // finding single instructor classes
+        app.get('/classes/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email
+
+            if (req.decoded.email !== email) {
+                return res.send({ classes: [] })
+            }
+
+            const query = { instructor_email: email }
+
+            const instructorClasses = await classCollection.find(query).toArray()
+            const result = { classes: instructorClasses }
             res.send(result)
         })
 
