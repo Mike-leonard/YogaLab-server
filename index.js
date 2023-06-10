@@ -182,10 +182,13 @@ async function run() {
             res.send(result)
         })
 
+        // with query calling it from classes route frontend
         // DASHBOARD
         // Admin specific to show on manage classes
-        app.get('/classes', verifyJWT, async (req, res) => {
-            const result = await classCollection.find().toArray()
+        app.get('/classes', async (req, res) => {
+            const status = req.query?.status
+            const query = {status: status}
+            const result = await classCollection.find(query).toArray()
             res.send(result);
         })
 
