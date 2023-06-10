@@ -76,7 +76,9 @@ async function run() {
         // Making users collection
         const usersCollection = client.db("YogaLabDB").collection("users")
         //  Making Class collection
-        const classCollection = client.db("YogaLabDB").collection("classes");
+        const classCollection = client.db("YogaLabDB").collection("classes")
+        // student carts collection
+        const cartCollection = client.db("YogaLabDB").collection("carts")
 
         // initial JsonwebToken Route
         app.post('/jwt', (req, res) => {
@@ -149,14 +151,21 @@ async function run() {
             res.send(result)
         })
 
+        // while posting items to cart
+        app.post('/carts', async (req, res) => {
+            const item = req.body
+            const result = await cartCollection.insertOne(item)
+            res.send(result)
+        })
+
         // DASHBOARD
         // Protecting every route for every user types like admin, instructor, student
-        app.get('/users/:email', verifyJWT, async (req, res) => {
+        app.get('/users/:email', async (req, res) => {
             const email = req.params.email
 
-            if (req.decoded.email !== email) {
+           /*  if (req.decoded.email !== email) {
                 return res.send({ role: '' })
-            }
+            } */
 
             const query = { email: email }
 
