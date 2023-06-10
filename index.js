@@ -3,7 +3,8 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
-
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -13,10 +14,17 @@ const port = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://yoga-lab-16ef6.firebaseapp.com',
+});
+
+
+
 // middleware for verifying JWT
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization
-    if(!authorization) {
+    if (!authorization) {
         return res.status(401).send({ error: true, message: 'Invalid authorization' })
     }
 
@@ -55,7 +63,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        
+
         //await client.connect();
         client.connect(err => {
             if (err) {
@@ -89,39 +97,75 @@ async function run() {
             next()
         }
 
+        //adding to instructor path
+        // await Promise makes call faster
+        app.get('/users/instructor', async (req, res) => {
+            const query = { role: "instructor" };
+            const instructors = await usersCollection.find(query).toArray();
+            const instructorsWithUserInfo = [];
+
+            await Promise.all(
+                instructors.map(async (instructor) => {
+                    try {
+                        const userRecords = await admin.auth().getUserByEmail(instructor.email);
+                        const { photoURL } = userRecords;
+                        instructorsWithUserInfo.push({
+                            _id: instructor._id,
+                            name: instructor?.name,
+                            email: instructor?.email,
+                            photoURL,
+                            role: instructor?.role,
+                        });
+                    } catch (error) {
+                        console.error(`Error retrieving user record for ${instructor.email}:`, error);
+                    }
+                })
+            );
+
+            res.send(instructorsWithUserInfo);
+
+        });
+
+
+
         // This api need for admin to check users and their rule
-        app.get('/users', verifyJWT, async (req, res) => {
+        app.get('/users', async (req, res) => {
             const result = await usersCollection.find().toArray()
+            //console.log(result)
             res.send(result);
+
         })
 
+        // Creating users time
         // when first time user creates or already existing users available check and adding to users collection
         app.post('/users', async (req, res) => {
             const user = req.body
-            const query = {email: user.email}
+            const query = { email: user.email }
             const existingUser = await usersCollection.findOne(query)
-            if(existingUser) {
-                return res.send({message: "User already exists"})
+            if (existingUser) {
+                return res.send({ message: "User already exists" })
             }
             const result = await usersCollection.insertOne(user)
             res.send(result)
         })
 
+        // DASHBOARD
         // Protecting every route for every user types like admin, instructor, student
         app.get('/users/:email', verifyJWT, async (req, res) => {
             const email = req.params.email
 
-            if(req.decoded.email !== email) {
-                return res.send({role: ''})
+            if (req.decoded.email !== email) {
+                return res.send({ role: '' })
             }
 
-            const query = {email: email}
+            const query = { email: email }
 
             const user = await usersCollection.findOne(query)
-            const result = {role: user?.role }
+            const result = { role: user?.role }
             res.send(result)
         })
 
+        // DASHBOARD
         // setting up user rule when user is admin
         app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
             // lets query first
@@ -138,12 +182,14 @@ async function run() {
             res.send(result)
         })
 
+        // DASHBOARD
         // Admin specific to show on manage classes
-        app.get('/classes',verifyJWT, async (req, res) => {
+        app.get('/classes', verifyJWT, async (req, res) => {
             const result = await classCollection.find().toArray()
             res.send(result);
         })
 
+        // DASHBOARD
         // instructor posting a new class though this route
         app.post('/classes', verifyJWT, async (req, res) => {
             const addNewClass = req.body
@@ -151,6 +197,7 @@ async function run() {
             res.send(result)
         })
 
+        // DASHBOARD
         // finding single instructor classes
         app.get('/classes/:email', verifyJWT, async (req, res) => {
             const email = req.params.email
@@ -166,6 +213,7 @@ async function run() {
             res.send(result)
         })
 
+        // DASHBOARD
         // admin status changing steps to deny or approved or feedback
         app.patch('/classes/:id', verifyJWT, verifyAdmin, async (req, res) => {
             // lets query first
@@ -173,7 +221,7 @@ async function run() {
             const id = req.params.id
             console.log(statusType, feedback)
             const filter = { _id: new ObjectId(id) }
-        
+
             const updatedDoc = {
                 $set: {
                     status: statusType,
@@ -191,7 +239,7 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
-      //  await client.close();
+        //  await client.close();
     }
 }
 run().catch(console.dir);
