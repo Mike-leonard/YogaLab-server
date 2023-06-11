@@ -302,9 +302,41 @@ async function run() {
 
             const query = { _id: { $in: payment.cartItemsId.map(id => new ObjectId(id)) } }
             const deleteResult = await cartCollection.deleteMany(query)
-            console.log(insertResult)
             res.send({ insertResult, deleteResult })
         })
+
+        app.get('/enroll-courses', async (req, res) => {
+            const enrolledClasses = req.query?.enrolled;
+            const enrolledArray = enrolledClasses ? JSON.parse(enrolledClasses) : [];
+           // console.log("enrolledClasses", enrolledArray);
+            const paidItemsID = enrolledArray.map(items => items.paidItemsId).flat();
+            //console.log(paidItemsID)
+
+            const query = { _id: { $in: paidItemsID.map(id => new ObjectId(id)) } };
+            
+            const courses = await classCollection.find(query).toArray()
+            //console.log("course", courses)
+            res.send(courses)
+        });
+
+
+
+        // student specific call cart to get Item show on my selected course
+        app.get('/payments/done', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([])
+                return
+            }
+            const decodedEmail = req.decoded.email
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'Forbidden Access!' });
+            }
+            const query = { email: email }
+            const result = await paymentCollection.find(query).toArray()
+            //console.log(result)
+            res.send(result)
+        });
 
 
         // Send a ping to confirm a successful connection
