@@ -151,11 +151,37 @@ async function run() {
             res.send(result)
         })
 
+        // student specific call cart to get Item show on my selected course
+        app.get('/carts', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+                return
+            }
+            const decodedEmail = req.decoded.email
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'Forbidden Access!' });
+            }
+            const query = { email: email }
+            const result = await cartCollection.find(query).toArray()
+            res.send(result)
+        });
+
+        // TODO: test later with jwt
         // while posting items to cart
         app.post('/carts', async (req, res) => {
             const item = req.body
             const result = await cartCollection.insertOne(item)
             res.send(result)
+        })
+
+        // TODO: test later with jwt
+        // deleting student cart item 
+        app.delete('/carts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await cartCollection.deleteOne(query);
+            res.send(result);
         })
 
         // DASHBOARD
