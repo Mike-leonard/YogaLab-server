@@ -5,6 +5,7 @@ require('dotenv').config()
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccountKey.json');
+const stripe = require("stripe")(process.env.PAYMENT_SECRET);
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -16,7 +17,7 @@ app.use(express.json())
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://yoga-lab-16ef6.firebaseapp.com',
+    databaseURL: process.env.AUTH_DATABASE,
 });
 
 
@@ -79,6 +80,8 @@ async function run() {
         const classCollection = client.db("YogaLabDB").collection("classes")
         // student carts collection
         const cartCollection = client.db("YogaLabDB").collection("carts")
+        //payments collection
+        const paymentCollection = client.db("YogaLabDB").collection("payments")
 
         // initial JsonwebToken Route
         app.post('/jwt', (req, res) => {
@@ -124,7 +127,7 @@ async function run() {
                 })
             );
 
-            res.send(instructorsWithUserInfo);
+            res.send(instructorsWithUserInfo)
 
         });
 
@@ -134,7 +137,7 @@ async function run() {
         app.get('/users', async (req, res) => {
             const result = await usersCollection.find().toArray()
             //console.log(result)
-            res.send(result);
+            res.send(result)
 
         })
 
@@ -155,7 +158,7 @@ async function run() {
         app.get('/carts', verifyJWT, async (req, res) => {
             const email = req.query.email;
             if (!email) {
-                res.send([]);
+                res.send([])
                 return
             }
             const decodedEmail = req.decoded.email
@@ -181,7 +184,7 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await cartCollection.deleteOne(query);
-            res.send(result);
+            res.send(result)
         })
 
         // DASHBOARD
@@ -189,9 +192,9 @@ async function run() {
         app.get('/users/:email', async (req, res) => {
             const email = req.params.email
 
-           /*  if (req.decoded.email !== email) {
-                return res.send({ role: '' })
-            } */
+            /*  if (req.decoded.email !== email) {
+                 return res.send({ role: '' })
+             } */
 
             const query = { email: email }
 
@@ -213,6 +216,7 @@ async function run() {
                 }
             };
 
+
             const result = await usersCollection.updateOne(filter, updatedDoc)
             res.send(result)
         })
@@ -222,9 +226,9 @@ async function run() {
         // Admin specific to show on manage classes
         app.get('/classes', async (req, res) => {
             const status = req.query?.status
-            const query = {status: status}
+            const query = { status: status }
             const result = await classCollection.find(query).toArray()
-            res.send(result);
+            res.send(result)
         })
 
         // DASHBOARD
@@ -269,6 +273,37 @@ async function run() {
 
             const result = await classCollection.updateOne(filter, updatedDoc)
             res.send(result)
+        })
+
+
+        // calculating payments amount
+        // payment intent
+        app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+            const { price } = req.body
+            const amount = price * 100
+
+            const paymentIntent = await stripe.paymentIntents.create({
+
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            })
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            })
+
+        })
+
+        // getting payments data
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body
+            const insertResult = await paymentCollection.insertOne(payment)
+
+            const query = { _id: { $in: payment.cartItemsId.map(id => new ObjectId(id)) } }
+            const deleteResult = await cartCollection.deleteMany(query)
+            console.log(insertResult)
+            res.send({ insertResult, deleteResult })
         })
 
 
