@@ -295,27 +295,50 @@ async function run() {
 
         })
 
-        // getting payments data
+        // getting payments data 
+        // inserting to payments collection
+        // deleting from cart
+        // updating from course to add +1
         app.post('/payments', verifyJWT, async (req, res) => {
-            const payment = req.body
-            const insertResult = await paymentCollection.insertOne(payment)
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
 
-            const query = { _id: { $in: payment.cartItemsId.map(id => new ObjectId(id)) } }
-            const deleteResult = await cartCollection.deleteMany(query)
-            res.send({ insertResult, deleteResult })
-        })
+            const query = { _id: { $in: payment.cartItemsId.map(id => new ObjectId(id)) } };
+            const deleteResult = await cartCollection.deleteMany(query);
 
+            const paidItemsID = req.body.paidItemsId;
+            const queryItems = { _id: { $in: paidItemsID.map(id => new ObjectId(id)) } };
+
+            const updateDoc = {
+                $inc: {
+                    enroll_student: 1
+                },
+            };
+
+            const updateResult = await classCollection.updateMany(queryItems, updateDoc);
+            //console.log(updateResult);
+            res.send({ insertResult, deleteResult, updateResult });
+        });
+        //const courses = await classCollection.find(queryItems).toArray()
+        //const queryItems = { _id: { $in: payment.paidItemsId.map(id => new ObjectId(id)) } }
+
+
+
+        
+        // this route for enrolled any course
+        // receiving objects then parse it and flat array [[4,5]] to [4,5]
+        // query this to classCollection to get course data
         app.get('/enroll-courses', async (req, res) => {
             const enrolledClasses = req.query?.enrolled;
             const enrolledArray = enrolledClasses ? JSON.parse(enrolledClasses) : [];
-           // console.log("enrolledClasses", enrolledArray);
+            //console.log("enrolledClasses", enrolledArray);
             const paidItemsID = enrolledArray.map(items => items.paidItemsId).flat();
             //console.log(paidItemsID)
 
             const query = { _id: { $in: paidItemsID.map(id => new ObjectId(id)) } };
-            
+
             const courses = await classCollection.find(query).toArray()
-            //console.log("course", courses)
+            // console.log("course", courses)
             res.send(courses)
         });
 
@@ -325,18 +348,21 @@ async function run() {
         app.get('/payments/done', verifyJWT, async (req, res) => {
             const email = req.query.email;
             if (!email) {
-                res.send([])
-                return
+                res.send([]);
+                return;
             }
-            const decodedEmail = req.decoded.email
+
+            const decodedEmail = req.decoded.email;
             if (email !== decodedEmail) {
                 return res.status(403).send({ error: true, message: 'Forbidden Access!' });
             }
-            const query = { email: email }
-            const result = await paymentCollection.find(query).toArray()
-            //console.log(result)
-            res.send(result)
+
+            const query = { email: email };
+            const result = await paymentCollection.find(query).sort({ date: -1 }).toArray();
+            //console.log(result);
+            res.send(result);
         });
+
 
 
         // Send a ping to confirm a successful connection
