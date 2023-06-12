@@ -104,32 +104,33 @@ async function run() {
 
         //adding to instructor path
         // await Promise makes call faster
-      /*   app.get('/users/instructor', async (req, res) => {
-            const query = { role: "instructor" };
-            const instructors = await usersCollection.find(query).toArray();
-            const instructorsWithUserInfo = [];
-
-            await Promise.all(
-                instructors.map(async (instructor) => {
-                    try {
-                        const userRecords = await admin.auth().getUserByEmail(instructor.email);
-                        const { photoURL } = userRecords;
-                        instructorsWithUserInfo.push({
-                            _id: instructor._id,
-                            name: instructor?.name,
-                            email: instructor?.email,
-                            photoURL,
-                            role: instructor?.role,
-                        });
-                    } catch (error) {
-                        console.error(`Error retrieving user record for ${instructor.email}:`, error);
-                    }
-                })
-            );
-
-            res.send(instructorsWithUserInfo)
-
-        }); */
+        /*   app.get('/users/instructor', async (req, res) => {
+              const query = { role: "instructor" };
+              const instructors = await usersCollection.find(query).toArray();
+              const instructorsWithUserInfo = [];
+  
+              await Promise.all(
+                  instructors.map(async (instructor) => {
+                      try {
+                          const userRecords = await admin.auth().getUserByEmail(instructor.email);
+                          const { photoURL } = userRecords;
+                          instructorsWithUserInfo.push({
+                              _id: instructor._id,
+                              name: instructor?.name,
+                              email: instructor?.email,
+                              photoURL,
+                              role: instructor?.role,
+                          });
+                      } catch (error) {
+                          console.error(`Error retrieving user record for ${instructor.email}:`, error);
+                      }
+                  })
+              );
+  
+              res.send(instructorsWithUserInfo)
+  
+              
+          }); */
         app.get('/users/instructor', async (req, res) => {
             try {
                 const query = { role: "instructor" };
@@ -254,22 +255,19 @@ async function run() {
                     role: query,
                 }
             };
-
-
             const result = await usersCollection.updateOne(filter, updatedDoc)
             res.send(result)
         })
 
-        // with query calling it from classes route frontend
+
         // DASHBOARD
         // Admin specific to show on manage classes
-        /* app.get('/classes', async (req, res) => {
-            const status = req.query?.status
-            const sort = req.query?.status
-            const query = { status: status }
-            const result = await classCollection.find(query).toArray()
+        app.get('/classes/Admin', async (req, res) => {
+            const result = await classCollection.find().toArray()
             res.send(result)
-        }) */
+        })
+
+        // with query calling it from classes route frontend
         app.get('/classes', async (req, res) => {
             const status = req.query?.status
             const sort = req.query?.sort
