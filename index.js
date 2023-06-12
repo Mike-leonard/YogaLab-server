@@ -104,7 +104,7 @@ async function run() {
 
         //adding to instructor path
         // await Promise makes call faster
-        app.get('/users/instructor', async (req, res) => {
+      /*   app.get('/users/instructor', async (req, res) => {
             const query = { role: "instructor" };
             const instructors = await usersCollection.find(query).toArray();
             const instructorsWithUserInfo = [];
@@ -129,7 +129,46 @@ async function run() {
 
             res.send(instructorsWithUserInfo)
 
+        }); */
+        app.get('/users/instructor', async (req, res) => {
+            try {
+                const query = { role: "instructor" };
+                const limit = parseInt(req.query.limit) || 0;
+                const instructors = await usersCollection.find(query).limit(limit).toArray();
+                const instructorsWithUserInfo = [];
+
+                const instructorPromises = instructors.map(async (instructor) => {
+                    try {
+                        const userRecords = await admin.auth().getUserByEmail(instructor.email);
+                        const { photoURL } = userRecords;
+                        return {
+                            _id: instructor._id,
+                            name: instructor?.name,
+                            email: instructor?.email,
+                            photoURL,
+                            role: instructor?.role,
+                        };
+                    } catch (error) {
+                        console.error(`Error retrieving user record for ${instructor.email}:`, error);
+                        return null;
+                    }
+                });
+
+                const resolvedInstructors = await Promise.all(instructorPromises);
+                resolvedInstructors.forEach((instructor) => {
+                    if (instructor) {
+                        instructorsWithUserInfo.push(instructor);
+                    }
+                });
+
+                res.send(instructorsWithUserInfo);
+            } catch (error) {
+                console.error("Error retrieving instructors:", error);
+                res.status(500).send({ error: "Internal server error" });
+            }
         });
+
+
 
 
 
@@ -224,10 +263,23 @@ async function run() {
         // with query calling it from classes route frontend
         // DASHBOARD
         // Admin specific to show on manage classes
-        app.get('/classes', async (req, res) => {
+        /* app.get('/classes', async (req, res) => {
             const status = req.query?.status
+            const sort = req.query?.status
             const query = { status: status }
             const result = await classCollection.find(query).toArray()
+            res.send(result)
+        }) */
+        app.get('/classes', async (req, res) => {
+            const status = req.query?.status
+            const sort = req.query?.sort
+            const query = { status: status }
+            let result
+            result = await classCollection.find(query).toArray()
+            if (sort) {
+                const data = result.sort((a, b) => b.enroll_student - a.enroll_student)
+                result = data.slice(0, 6);
+            }
             res.send(result)
         })
 
@@ -324,7 +376,7 @@ async function run() {
 
 
 
-        
+
         // this route for enrolled any course
         // receiving objects then parse it and flat array [[4,5]] to [4,5]
         // query this to classCollection to get course data
