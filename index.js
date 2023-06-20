@@ -262,19 +262,27 @@ async function run() {
 
         // DASHBOARD
         // Admin specific to show on manage classes
-        app.get('/classes/Admin', async (req, res) => {
-            const result = await classCollection.find().toArray()
-            res.send(result)
-        })
-
         // with query calling it from classes route frontend
         app.get('/classes', async (req, res) => {
-            const status = req.query?.status
-            const sort = req.query?.sort
-            const query = { status: status }
+            let query = {}
+            if (req.query?.status) {
+                query = {
+                    status: req.query?.status
+                }
+            }
+
             let result
             result = await classCollection.find(query).toArray()
-            if (sort) {
+            if (req.query?.status && req.query?.course) {
+                try {
+                    const id = req.query?.course
+                    const query = { status: req.query?.status, _id: new ObjectId(id) }
+                    result = await classCollection.findOne(query)
+                } catch (error) {
+                    return res.status(404).json({ error: 'Document not found' })
+                }
+            }
+            if (req.query?.sort) {
                 const data = result.sort((a, b) => b.enroll_student - a.enroll_student)
                 result = data.slice(0, 6);
             }
